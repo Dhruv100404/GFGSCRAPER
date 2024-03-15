@@ -9,30 +9,58 @@ CORS(app)
 @app.route('/scrape', methods=['POST'])
 def scrape():
     try:
-        input_url = request.json.get('url') 
-        print("Input URL:", input_url)
+        input_url = request.json.get('url')
+        if input_url:
+        
+            if "tutorialspoint.com" in input_url:
+                response = requests.get(input_url)
+                response.raise_for_status()
+                
+                soup = BeautifulSoup(response.content, "html.parser")
 
-        response = requests.get(input_url)
-        print("Response Status Code:", response.status_code)
+                title = soup.find("div", class_="tutorial-content cover")
+                title_text = soup.find("h1").get_text()
 
-        soup = BeautifulSoup(response.content, "html.parser")
+                article_text = soup.find("div", class_="tutorial-content")
+                para = article_text.find_all(["p", "h2", "h3"], recursive=False)
+                content = [p.get_text() for p in para if p.name != "pre"]
 
-        title = soup.find("h1").get_text()
-        print("Title:", title)
+                result = {
+                    'source': 'TutorialsPoint',
+                    'title': title_text,
+                    'content': content
+                }
 
-        article_text = soup.find("div", class_="text")
-        para = article_text.find_all(["p", "h2", "h3", "span"], recursive=False)
-        paragraphs = [p.get_text() for p in para if p.name != "pre"]
+                return jsonify(result), 200
 
-        result = {
-            'content': paragraphs
-        }
+            elif "geeksforgeeks.org" in input_url:
+                response = requests.get(input_url)
+                response.raise_for_status()
 
-        return jsonify(result), 200
+                soup = BeautifulSoup(response.content, "html.parser")
+
+                title = soup.find("h1").get_text()
+
+                article_text = soup.find("div", class_="text")
+                para = article_text.find_all(["p", "h2", "h3", "span"], recursive=False)
+                content = [p.get_text().replace('âˆ’', '-') for p in para if p.name != "pre"]
+
+                result = {
+                    'source': 'GeeksforGeeks',
+                    'title': title,
+                    'content': content
+                }
+
+                return jsonify(result), 200
+
+            else:
+                return jsonify({'error': 'Unsupported website. Please enter a valid TutorialsPoint or GeeksforGeeks URL.'}), 400
+
+        else:
+            return jsonify({'error': 'Please provide a URL.'}), 400
 
     except Exception as e:
-        print("Error:", e)
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(port=8080)
